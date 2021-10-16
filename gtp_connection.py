@@ -6,8 +6,11 @@ Parts of this code were originally based on the gtp module
 in the Deep-Go project by Isaac Henrion and Amos Storkey 
 at the University of Edinburgh.
 """
+import math
 import traceback
 from sys import stdin, stdout, stderr
+
+import board
 from board_util import (
     GoBoardUtil,
     BLACK,
@@ -34,9 +37,11 @@ class GtpConnection:
         board: 
             Represents the current board state.
         """
+        self.DEFAULT_TIMELIMIT = 1
         self._debug_mode = debug_mode
         self.go_engine = go_engine
         self.board = board
+        self.time_for_solve = self.DEFAULT_TIMELIMIT
         self.commands = {
             "protocol_version": self.protocol_version_cmd,
             "quit": self.quit_cmd,
@@ -50,6 +55,8 @@ class GtpConnection:
             "genmove": self.genmove_cmd,
             "list_commands": self.list_commands_cmd,
             "play": self.play_cmd,
+            "timelimit": self.timelimit_cmd,
+            "solve": self.solve_cmd,
             "legal_moves": self.legal_moves_cmd,
             "gogui-rules_game_id": self.gogui_rules_game_id_cmd,
             "gogui-rules_board_size": self.gogui_rules_board_size_cmd,
@@ -77,6 +84,88 @@ class GtpConnection:
 
     def flush(self):
         stdout.flush()
+
+    def timelimit_cmd(self, args):
+        """
+        Setting the time limit for other AI searches.
+
+        Parameters
+        ----------
+        args[0]: int -> the time limit in sec
+
+        Returns nothing
+        -------
+
+        """
+        length = len(args)
+        if length > 0:
+            seconds = int(args[0])
+            self.time_for_solve = seconds
+        return
+
+    def solve_cmd(self, args):
+        """
+
+        Returns
+        -------
+
+        """
+        color_options = {
+            1: "b",  # BLACK
+            2: "w"  # WHITE
+        }
+
+        # identifying the color of both player
+        if self.board.current_player == BLACK:
+            opponent_color_no = WHITE
+        else:  # That means current player is WHITE
+            opponent_color_no = BLACK
+        current_player_color = color_options[self.board.current_player]
+        opponent_color = color_options[opponent_color_no]
+
+        # Someone already won.
+        is_winner = self.board.detect_five_in_a_row()
+        if is_winner == self.board.current_player:  # both are numbers
+            return current_player_color
+        elif is_winner == opponent_color_no:  # opponent won
+            return opponent_color
+
+        # if code reaches here, no one won yet.
+        empty_points = self.board.get_empty_points()
+        if len(empty_points) == 0:  # DRAW condition
+            return '[draw]'
+        else:   # there are points on the board that is still playable
+            empty_list = list(empty_points)
+            # self.alphabeta_solve(self.test_board(), empty_list, -math.inf, math.inf, True, 10)
+
+            something = 5
+
+    def alphabeta_solve(self, test_board, empty_list, alpha, beta, maximizing_player, depth):
+        if len(self.board.get_empty_points()) == 0 or self.board.detect_five_in_a_row() != EMPTY:
+            return self.static_evaluation_of_terminal_state()
+
+        if maximizing_player:
+            max_eval = -math.inf
+            for point in empty_list:
+                play_move = test_board.play_move(point, self.board.current_player)
+                empty_list.remove(point)
+                value = -self.alphabeta_solve(test_board, empty_list, alpha, beta, maximizing_player, depth)
+                max_eval = max(max_eval, value)
+                alpha = max(alpha, value)
+                test_board = self.board.copy()
+                if value >= beta:
+                    return beta
+            return alpha
+
+
+    def test_board(self):
+        board_copy = self.board.copy()
+        return board_copy
+        #can_play_move = board_copy.play_move(point, color)
+        # self.board[point] = color
+
+    def static_evaluation_of_terminal_state(self):
+        pass
 
     def start_connection(self):
         """
@@ -219,7 +308,7 @@ class GtpConnection:
             gtp_moves.append(format_point(coords))
         sorted_moves = " ".join(sorted(gtp_moves))
         self.respond(sorted_moves)
-        
+
     def play_cmd(self, args):
         """
         play a move args[1] for given color args[0] in {'b','w'}
@@ -248,8 +337,8 @@ class GtpConnection:
                 )
             self.respond()
         except Exception as e:
-            self.respond("illegal move: {}".format(str(e).replace('\'','')))
-    
+            self.respond("illegal move: {}".format(str(e).replace('\'', '')))
+
     def genmove_cmd(self, args):
         """
         Generate a move for the color args[0] in {'b', 'w'}, for the game of gomoku.
@@ -301,10 +390,10 @@ class GtpConnection:
     def gogui_rules_board_cmd(self, args):
         size = self.board.size
         str = ''
-        for row in range(size-1, -1, -1):
+        for row in range(size - 1, -1, -1):
             start = self.board.row_start(row + 1)
             for i in range(size):
-                #str += '.'
+                # str += '.'
                 point = self.board.board[start + i]
                 if point == BLACK:
                     str += 'X'
@@ -337,6 +426,7 @@ class GtpConnection:
                      "pstring/Rules GameID/gogui-rules_game_id\n"
                      "pstring/Show Board/gogui-rules_board\n"
                      )
+
 
 def point_to_coord(point, boardsize):
     """
@@ -396,7 +486,7 @@ def move_to_coord(point_str, board_size):
 def color_to_int(c):
     """convert character to the appropriate integer code"""
     color_to_int = {"b": BLACK, "w": WHITE, "e": EMPTY, "BORDER": BORDER}
-    
+
     try:
         return color_to_int[c]
     except:
