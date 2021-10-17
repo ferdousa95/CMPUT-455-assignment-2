@@ -38,7 +38,8 @@ class GtpConnection:
             Represents the current board state.
         """
         self.DEFAULT_TIMELIMIT = 1
-        self.best_move = math.inf  # SHOULD ONLY BE CHANGED BY alphabeta_solve(para...)
+        # SHOULD ONLY BE CHANGED BY alphabeta_solve(para...)
+        self.best_move = math.inf
         self.alt_move = 0
         self._debug_mode = debug_mode
         self.go_engine = go_engine
@@ -127,7 +128,7 @@ class GtpConnection:
         current_player_color = color_options[self.board.current_player]
         opponent_color = color_options[opponent_color_no]
 
-        # Someone already won.
+        #  Someone already won.
         is_winner = self.board.detect_five_in_a_row()
         if is_winner == self.board.current_player:  # both are numbers
             print(list(current_player_color))
@@ -139,10 +140,18 @@ class GtpConnection:
             print('[draw]')
             return
         else:  # there are points on the board that is still playable
-            print(self.min_moves())
-            print(self.best_move)
+            our_result = self.min_moves()
+            coord = self.point_to_coord(self.board.size)
+            move = self.format_point(coord)
+
             # Todo: We need to tailor the result according to the public test
-            something = 5  # does nothing, just to put a break and check other functions at this stage.
+            if our_result == 1:
+                self.respond("{winner} {move}".format(
+                    winner=current_player_color, move=move))
+            elif our_result == -1:
+                self.respond("{winner}".format(winner=opponent_color))
+            elif our_result == 0:
+                self.respond("draw {move}".format(move=move))
 
     def min_moves(self):
         """
@@ -165,7 +174,8 @@ class GtpConnection:
 
         for point in self.board.get_empty_points():
             self.board.play_move(point, self.board.current_player)
-            score = self.minimax(0, False, my_player)  # I am maximising player, next player is opponent
+            # I am maximising player, next player is opponent
+            score = self.minimax(0, False, my_player)
             self.board.undo(point)
             if score > best_score:
                 best_score = score
@@ -196,16 +206,17 @@ class GtpConnection:
         -------
         best_score - the best score from that round.
         """
-        is_winner = self.board.detect_five_in_a_row()
-        if len(self.board.get_empty_points()) == 0 or is_winner != EMPTY:
-            return self.game_decision(is_winner, my_player)
+        the_winner = self.board.detect_five_in_a_row()
+        if len(self.board.get_empty_points()) == 0 or the_winner != EMPTY:
+            return self.game_decision(the_winner, my_player)
 
         if is_maximizing:
             best_score = -math.inf
 
             for point in self.board.get_empty_points():
                 self.board.play_move(point, self.board.current_player)
-                score = self.minimax(depth + 1, False, my_player)  # over to minimizing player
+                # over to minimizing player
+                score = self.minimax(depth + 1, False, my_player)
                 self.board.undo(point)
                 best_score = max(score, best_score)  # I take the best
             return best_score
@@ -215,9 +226,11 @@ class GtpConnection:
 
             for point in self.board.get_empty_points():
                 self.board.play_move(point, self.board.current_player)
-                score = self.minimax(depth + 1, True, my_player)  # over to maximizing player
+                # over to maximizing player
+                score = self.minimax(depth + 1, True, my_player)
                 self.board.undo(point)
-                best_score = min(score, best_score)  # He will take the worst
+                # He will take the worst
+                best_score = min(score, best_score)
             return best_score
 
     def game_decision(self, is_winner, my_player):
@@ -243,7 +256,7 @@ class GtpConnection:
 
     def start_connection(self):
         """
-        Start a GTP connection. 
+        Start a GTP connection.
         This function continuously monitors standard input for commands.
         """
         line = stdin.readline()
@@ -274,8 +287,10 @@ class GtpConnection:
             try:
                 self.commands[command_name](args)
             except Exception as e:
-                self.debug_msg("Error executing command {}\n".format(str(e)))
-                self.debug_msg("Stack Trace:\n{}\n".format(traceback.format_exc()))
+                self.debug_msg(
+                    "Error executing command {}\n".format(str(e)))
+                self.debug_msg("Stack Trace:\n{}\n".format(
+                    traceback.format_exc()))
                 raise e
         else:
             self.debug_msg("Unknown command: {}\n".format(command_name))
@@ -403,15 +418,18 @@ class GtpConnection:
                 self.respond("unknown: {}".format(args[1]))
                 return
             if not self.board.play_move(move, color):
-                self.respond("illegal move: \"{}\" occupied".format(args[1].lower()))
+                self.respond(
+                    "illegal move: \"{}\" occupied".format(args[1].lower()))
                 return
             else:
                 self.debug_msg(
-                    "Move: {}\nBoard:\n{}\n".format(board_move, self.board2d())
+                    "Move: {}\nBoard:\n{}\n".format(
+                        board_move, self.board2d())
                 )
             self.respond()
         except Exception as e:
-            self.respond("illegal move: {}".format(str(e).replace('\'', '')))
+            self.respond("illegal move: {}".format(
+                str(e).replace('\'', '')))
 
     def genmove_cmd(self, args):
         """
@@ -533,7 +551,7 @@ class GtpConnection:
 
 def point_to_coord(point, boardsize):
     """
-    Transform point given as board array index 
+    Transform point given as board array index
     to (row, col) coordinate representation.
     Special case: PASS is not transformed
     """
