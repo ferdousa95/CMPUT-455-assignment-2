@@ -126,46 +126,75 @@ class GtpConnection:
         # Someone already won.
         is_winner = self.board.detect_five_in_a_row()
         if is_winner == self.board.current_player:  # both are numbers
-            return current_player_color
+            print(list(current_player_color))
+            return
         elif is_winner == opponent_color_no:  # opponent won
-            return opponent_color
+            print(list(opponent_color))
+            return
 
         # if code reaches here, no one won yet.
         empty_points = self.board.get_empty_points()
         if len(empty_points) == 0:  # DRAW condition
-            return '[draw]'
+            print('[draw]')
+            return
         else:   # there are points on the board that is still playable
             empty_list = list(empty_points)
-            # self.alphabeta_solve(self.test_board(), empty_list, -math.inf, math.inf, True, 10)
+            status, point = self.alphabeta_solve(self.test_board(), empty_list, -math.inf, math.inf, -1, 0)
 
             something = 5
 
-    def alphabeta_solve(self, test_board, empty_list, alpha, beta, maximizing_player, depth):
-        if len(self.board.get_empty_points()) == 0 or self.board.detect_five_in_a_row() != EMPTY:
-            return self.static_evaluation_of_terminal_state()
+    def alphabeta_solve(self, test_board, empty_list, alpha, beta, chosen_point, depth):
+        # terminal nodes
+        if len(empty_list) == 0 or test_board.detect_five_in_a_row() != EMPTY:
+            return self.static_evaluation_of_terminal_state(test_board)
 
-        if maximizing_player:
-            max_eval = -math.inf
-            for point in empty_list:
-                play_move = test_board.play_move(point, self.board.current_player)
-                empty_list.remove(point)
-                value = -self.alphabeta_solve(test_board, empty_list, alpha, beta, maximizing_player, depth)
-                max_eval = max(max_eval, value)
-                alpha = max(alpha, value)
-                test_board = self.board.copy()
-                if value >= beta:
-                    return beta
-            return alpha
 
+        for point in empty_list:
+
+            # Getting our testing board ready where we play moves where the board is empty
+            test_board = self.board.copy()
+            test_board.play_move(point, self.board.current_player)
+            empty_list.remove(point)
+
+            # calculating the value
+            value = -self.alphabeta_solve(test_board, empty_list, alpha, beta, chosen_point, depth+1)
+            if value > alpha:
+                alpha = value
+                chosen_point = point
+            if value >= beta:
+                return beta
+        return alpha
 
     def test_board(self):
+        """
+        Still confused about the use of this function, just kept here for now
+        Returns
+        -------
+
+        """
         board_copy = self.board.copy()
         return board_copy
         #can_play_move = board_copy.play_move(point, color)
         # self.board[point] = color
 
-    def static_evaluation_of_terminal_state(self):
-        pass
+    def static_evaluation_of_terminal_state(self, test_board):
+        """
+        Returns from the perspective of our current player if the match is win/loss/draw
+        Parameters
+        ----------
+        test_board - test_board is a copy of our original board
+
+        Returns - 1 for win, 0 for draw, -1 if opponent win/our loss
+        -------
+
+        """
+        winner = test_board.detect_five_in_a_row()
+        if winner == self.board.current_player:
+            return 1
+        elif winner == 0:
+            return 0
+        else:
+            return -1
 
     def start_connection(self):
         """
