@@ -88,21 +88,33 @@ class GtpConnection:
     def timelimit_cmd(self, args):
         """
         Setting the time limit for other AI searches.
+        The time limit is  1 <= seconds <= 100.
 
         Parameters
         ----------
         args[0]: int -> the time limit in sec
 
         Returns nothing
-        -------
-
+        -------       
         """
+        
+        
         length = len(args)
         if length > 0:
             seconds = int(args[0])
             self.time_for_solve = seconds
         return
-
+        
+        """
+        
+        #little change here >>>
+        
+        seconds = int(args[0])
+        assert 1 <= seconds <= 100, 'Timelimit out of range'
+        self.time_for_solve = seconds
+        
+        """
+        
     def solve_cmd(self, args):
         """
 
@@ -372,6 +384,8 @@ class GtpConnection:
         """
         Generate a move for the color args[0] in {'b', 'w'}, for the game of gomoku.
         """
+        
+        
         result = self.board.detect_five_in_a_row()
         if result == GoBoardUtil.opponent(self.board.current_player):
             self.respond("resign")
@@ -389,7 +403,34 @@ class GtpConnection:
             self.respond(move_as_string.lower())
         else:
             self.respond("Illegal move: {}".format(move_as_string))
-
+            
+        """
+        
+        
+        result = self.solve_cmd()
+        board_color = args[0].lower()
+        color = color_to_int(board_color)
+        
+        if result == False:
+            if: # game is not over 
+                pass
+            
+             # random move
+            else:
+                move = self.go_engine.get_move(self.board, color)
+                move_coord = point_to_coord(move, self.board.size)
+                move_as_string = format_point(move_coord) 
+            if self.board.is_legal(move, color):
+                self.board.play_move(move, color)
+                self.respond(move_as_string.lower())
+            else:
+                self.respond("Illegal move: {}".format(move_as_string))            
+                           
+                
+        # game is over.
+        else:
+            self.respond("resign")
+        """
     def gogui_rules_game_id_cmd(self, args):
         self.respond("Gomoku")
 
