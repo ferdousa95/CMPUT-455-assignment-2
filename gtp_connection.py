@@ -9,6 +9,7 @@ at the University of Edinburgh.
 import math
 import traceback
 from sys import stdin, stdout, stderr
+from TranspositionTable import TranspositionTable
 
 import board
 from board_util import (
@@ -106,6 +107,32 @@ class GtpConnection:
             assert 1 <= seconds <= 100, "Timelimit out of range"
             self.time_for_solve = seconds
         return
+    
+    def negamaxBoolean(self, tt):
+        result = tt.lookup(self.code())
+        if result != None:
+            return result
+        if self.endOfGame():
+            result = self.staticallyEvaluateForToPlay()
+            return storeResult(tt, self, result)
+        for m in self.legalMoves():
+            self.play(m)
+            success = not negamaxBoolean(self, tt)
+            self.undo()
+            if success:
+                return storeResult(tt, self, True)
+        return storeResult(tt, self, False)
+    
+    def call_search(self):
+        tt = TranspositionTable() # use separate table for each color
+        return negamaxBoolean(self, tt)
+
+    def storeResult(self, tt, result):
+        tt.store(self.code(), result)
+        return result
+
+    
+
 
     def solve_cmd(self, args):
         """
