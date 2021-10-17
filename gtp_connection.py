@@ -99,24 +99,14 @@ class GtpConnection:
         Returns nothing
         -------       
         """
-        
-        
+
         length = len(args)
         if length > 0:
             seconds = int(args[0])
+            assert 1 <= seconds <= 100, "Timelimit out of range"
             self.time_for_solve = seconds
         return
-        
-        """
-        
-        #little change here >>>
-        
-        seconds = int(args[0])
-        assert 1 <= seconds <= 100, 'Timelimit out of range'
-        self.time_for_solve = seconds
-        
-        """
-        
+
     def solve_cmd(self, args):
         """
 
@@ -427,8 +417,7 @@ class GtpConnection:
         """
         Generate a move for the color args[0] in {'b', 'w'}, for the game of gomoku.
         """
-        
-        
+
         result = self.board.detect_five_in_a_row()
         if result == GoBoardUtil.opponent(self.board.current_player):
             self.respond("resign")
@@ -446,7 +435,7 @@ class GtpConnection:
             self.respond(move_as_string.lower())
         else:
             self.respond("Illegal move: {}".format(move_as_string))
-            
+
         """
         
         
@@ -474,6 +463,7 @@ class GtpConnection:
         else:
             self.respond("resign")
         """
+
     def gogui_rules_game_id_cmd(self, args):
         self.respond("Gomoku")
 
