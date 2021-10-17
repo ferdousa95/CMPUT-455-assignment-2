@@ -38,6 +38,7 @@ class GtpConnection:
             Represents the current board state.
         """
         self.DEFAULT_TIMELIMIT = 1
+        self.best_move = math.inf  # SHOULD ONLY BE CHANGED BY alphabeta_solve(para...)
         self._debug_mode = debug_mode
         self.go_engine = go_engine
         self.board = board
@@ -131,36 +132,31 @@ class GtpConnection:
         elif is_winner == opponent_color_no:  # opponent won
             print(list(opponent_color))
             return
-
-        # if code reaches here, no one won yet.
-        empty_points = self.board.get_empty_points()
-        if len(empty_points) == 0:  # DRAW condition
+        elif len(self.board.get_empty_points()) == 0 and is_winner == EMPTY:  # DRAW condition
             print('[draw]')
             return
-        else:   # there are points on the board that is still playable
-            empty_list = list(empty_points)
-            status, point = self.alphabeta_solve(self.test_board(), empty_list, -math.inf, math.inf, -1, 0)
-
+        else:  # there are points on the board that is still playable
+            empty_list = list(self.board.get_empty_points())
+            status = self.alphabeta_solve(empty_list, -math.inf, math.inf, 0)
+            print(5)
             something = 5
 
-    def alphabeta_solve(self, test_board, empty_list, alpha, beta, chosen_point, depth):
-        # terminal nodes
-        if len(empty_list) == 0 or test_board.detect_five_in_a_row() != EMPTY:
-            return self.static_evaluation_of_terminal_state(test_board)
+    def alphabeta_solve(self, empty_list, alpha, beta, depth):
 
+        if len(self.board.get_empty_points()) == 0 or self.board.detect_five_in_a_row() != EMPTY:
+            return self.static_evaluation_of_terminal_state()
 
         for point in empty_list:
-
-            # Getting our testing board ready where we play moves where the board is empty
-            test_board = self.board.copy()
-            test_board.play_move(point, self.board.current_player)
+            self.board.play_move(point, self.board.current_player)
             empty_list.remove(point)
 
             # calculating the value
-            value = -self.alphabeta_solve(test_board, empty_list, alpha, beta, chosen_point, depth+1)
+            value = -self.alphabeta_solve(empty_list, -beta, -alpha, depth + 1)
             if value > alpha:
                 alpha = value
-                chosen_point = point
+                self.best_move = point
+            self.board.undo(point)
+            empty_list.append(point)
             if value >= beta:
                 return beta
         return alpha
@@ -174,10 +170,10 @@ class GtpConnection:
         """
         board_copy = self.board.copy()
         return board_copy
-        #can_play_move = board_copy.play_move(point, color)
+        # can_play_move = board_copy.play_move(point, color)
         # self.board[point] = color
 
-    def static_evaluation_of_terminal_state(self, test_board):
+    def static_evaluation_of_terminal_state(self):
         """
         Returns from the perspective of our current player if the match is win/loss/draw
         Parameters
@@ -188,12 +184,12 @@ class GtpConnection:
         -------
 
         """
-        winner = test_board.detect_five_in_a_row()
+        winner = self.board.detect_five_in_a_row()
         if winner == self.board.current_player:
             return 1
-        elif winner == 0:
+        elif winner == 0:  # DRAW
             return 0
-        else:
+        else:  # LOSE
             return -1
 
     def start_connection(self):

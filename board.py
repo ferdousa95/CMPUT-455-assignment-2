@@ -134,7 +134,7 @@ class GoBoard(object):
     def get_color(self, point):
         return self.board[point]
 
-    def Undo(self,point):
+    def undo(self, point):
         self.board[point] = EMPTY
         self.current_player = GoBoardUtil.opponent(self.current_player)
 
