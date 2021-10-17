@@ -1,0 +1,53 @@
+
+"""
+The alphabeta search for solve from previous implementation.
+"""
+def alphabeta_solve(self, alpha, beta, depth, my_player):
+
+    if self.board.detect_five_in_a_row() != EMPTY or len(self.board.get_empty_points()) == 0:
+        return self.static_evaluation_of_terminal_state(my_player)
+
+    for point in self.board.get_empty_points():
+        self.board.play_move(point, self.board.current_player)
+        # calculating the value
+        value = -self.alphabeta_solve(-beta, -alpha, depth + 1, my_player)
+        if value > alpha:
+            alpha = value
+            self.best_move = point
+        self.board.undo(point)
+        if value >= beta:
+            return beta
+    return alpha
+
+
+def test_board(self):
+    """
+    Still confused about the use of this function, just kept here for now
+    Returns
+    -------
+
+    """
+    board_copy = self.board.copy()
+    return board_copy
+    # can_play_move = board_copy.play_move(point, color)
+    # self.board[point] = color
+
+
+def static_evaluation_of_terminal_state(self, my_player):
+    """
+    Returns from the perspective of our current player if the match is win/loss/draw
+    Parameters
+    ----------
+    test_board - test_board is a copy of our original board
+
+    Returns - 1 for win, 0 for draw, -1 if opponent win/our loss
+    -------
+
+    """
+    winner = self.board.detect_five_in_a_row()
+    if winner == my_player:
+        return 1
+    elif winner == 0:  # Draw
+        return 0
+    else:  # Black Lose -> white wins
+        return -1

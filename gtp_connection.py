@@ -137,59 +137,106 @@ class GtpConnection:
             print('[draw]')
             return
         else:  # there are points on the board that is still playable
-            empty_list = list(self.board.get_empty_points())
-            win_for_black = self.alphabeta_solve(-math.inf, math.inf, 0)
-            print(win_for_black, self.best_move)
-            something = 5
+            print(self.min_moves())
+            print(self.best_move)
+            # Todo: We need to tailor the result according to the public test
+            something = 5  # does nothing, just to put a break and check other functions at this stage.
 
-    def alphabeta_solve(self, alpha, beta, depth):
+    def min_moves(self):
+        """
+        This min_moves is basically a little better than naive minimax.
+        min_moves takes cares of the root and is the maximizing player. Later, it calls the minimizing player and
+        keeps track of the best_score and move from each root state.
 
-        if depth == 2 or self.board.detect_five_in_a_row() != EMPTY or len(self.board.get_empty_points()) == 0:
-            return self.static_evaluation_of_terminal_state()
+        Returns
+        -------
+        Returns the best root it finds in the table,
+        1 - our current player wins
+        -1 - our current player lost
+        0 - its a draw game
+
+        self.board.best_move = does not return this value but it stores the best move that we have.
+        """
+        best_score = -math.inf
+        move = 0
+        my_player = self.board.current_player
 
         for point in self.board.get_empty_points():
             self.board.play_move(point, self.board.current_player)
+            score = self.minimax(0, False, my_player)  # I am maximising player, next player is opponent
+            self.board.undo(point)
+            if score > best_score:
+                best_score = score
+                move = point
+                self.best_move = move
+        return best_score
 
-            # calculating the value
-            value = -self.alphabeta_solve(-beta, -alpha, depth + 1)
-            if value > alpha:
-                alpha = value
-                self.best_move = point
-            # self.board.undo(point)
-            # empty_list.append(point)
-            if value >= beta:
-                return beta
-        return alpha
-
-    def test_board(self):
+    def minimax(self, depth, is_maximizing, my_player):
         """
-        Still confused about the use of this function, just kept here for now
-        Returns
-        -------
+        minimax for win/loss/draw
 
-        """
-        board_copy = self.board.copy()
-        return board_copy
-        # can_play_move = board_copy.play_move(point, color)
-        # self.board[point] = color
+        at the start, checks if the board is filled up or anybody won. Then, return the result from that state,
+        (this is made mostly for terminal state)
 
-    def static_evaluation_of_terminal_state(self):
-        """
-        Returns from the perspective of our current player if the match is win/loss/draw
+        Then if maximizing player,
+            tries to get the best move
+            over to minimizing player
+        Then if minimizing player,
+            we pick the worst he can do
+            over to us
         Parameters
         ----------
-        test_board - test_board is a copy of our original board
+        depth - the level of depth we reached in the tree
+        is_maximizing - True or False (are you a maximizing player or not)
+        my_player - the player who wants the solve.
 
-        Returns - 1 for win, 0 for draw, -1 if opponent win/our loss
+        Returns
         -------
-
+        best_score - the best score from that round.
         """
-        winner = self.board.detect_five_in_a_row()
-        if winner == self.board.current_player:
+        is_winner = self.board.detect_five_in_a_row()
+        if len(self.board.get_empty_points()) == 0 or is_winner != EMPTY:
+            return self.game_decision(is_winner, my_player)
+
+        if is_maximizing:
+            best_score = -math.inf
+
+            for point in self.board.get_empty_points():
+                self.board.play_move(point, self.board.current_player)
+                score = self.minimax(depth + 1, False, my_player)  # over to minimizing player
+                self.board.undo(point)
+                best_score = max(score, best_score)  # I take the best
+            return best_score
+
+        else:
+            best_score = math.inf
+
+            for point in self.board.get_empty_points():
+                self.board.play_move(point, self.board.current_player)
+                score = self.minimax(depth + 1, True, my_player)  # over to maximizing player
+                self.board.undo(point)
+                best_score = min(score, best_score)  # He will take the worst
+            return best_score
+
+    def game_decision(self, is_winner, my_player):
+        """
+        Decides at the stage where someone won, or the board is not empty anymore.
+        Parameters
+        ----------
+        is_winner - who won
+        my_player - our current player who called solve
+
+        Returns
+        -------
+        1 - if our current player won
+        0 - draw here
+        -1 - our current player losses at this path.
+        """
+        if is_winner == my_player:  # the player I started this solve func with
             return 1
-        elif winner == 0:  # Draw
+        elif is_winner == 0:
             return 0
-        else:  # Black Lose -> white wins
+        else:
             return -1
 
     def start_connection(self):
