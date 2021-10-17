@@ -39,6 +39,7 @@ class GtpConnection:
         """
         self.DEFAULT_TIMELIMIT = 1
         self.best_move = math.inf  # SHOULD ONLY BE CHANGED BY alphabeta_solve(para...)
+        self.alt_move = 0
         self._debug_mode = debug_mode
         self.go_engine = go_engine
         self.board = board
@@ -137,26 +138,25 @@ class GtpConnection:
             return
         else:  # there are points on the board that is still playable
             empty_list = list(self.board.get_empty_points())
-            status = self.alphabeta_solve(empty_list, -math.inf, math.inf, 0)
-            print(5)
+            win_for_black = self.alphabeta_solve(-math.inf, math.inf, 0)
+            print(win_for_black, self.best_move)
             something = 5
 
-    def alphabeta_solve(self, empty_list, alpha, beta, depth):
+    def alphabeta_solve(self, alpha, beta, depth):
 
-        if len(self.board.get_empty_points()) == 0 or self.board.detect_five_in_a_row() != EMPTY:
+        if depth == 2 or self.board.detect_five_in_a_row() != EMPTY or len(self.board.get_empty_points()) == 0:
             return self.static_evaluation_of_terminal_state()
 
-        for point in empty_list:
+        for point in self.board.get_empty_points():
             self.board.play_move(point, self.board.current_player)
-            empty_list.remove(point)
 
             # calculating the value
-            value = -self.alphabeta_solve(empty_list, -beta, -alpha, depth + 1)
+            value = -self.alphabeta_solve(-beta, -alpha, depth + 1)
             if value > alpha:
                 alpha = value
                 self.best_move = point
-            self.board.undo(point)
-            empty_list.append(point)
+            # self.board.undo(point)
+            # empty_list.append(point)
             if value >= beta:
                 return beta
         return alpha
@@ -187,9 +187,9 @@ class GtpConnection:
         winner = self.board.detect_five_in_a_row()
         if winner == self.board.current_player:
             return 1
-        elif winner == 0:  # DRAW
+        elif winner == 0:  # Draw
             return 0
-        else:  # LOSE
+        else:  # Black Lose -> white wins
             return -1
 
     def start_connection(self):
