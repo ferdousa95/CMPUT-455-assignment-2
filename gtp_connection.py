@@ -141,10 +141,9 @@ class GtpConnection:
             return
         else:  # there are points on the board that is still playable
             our_result = self.min_moves()
-            coord = self.point_to_coord(self.board.size)
-            move = self.format_point(coord)
+            coord = point_to_coord(self.best_move, self.board.size)
+            move = format_point(coord)
 
-            # Todo: We need to tailor the result according to the public test
             if our_result == 1:
                 self.respond("{winner} {move}".format(
                     winner=current_player_color, move=move))
@@ -171,19 +170,24 @@ class GtpConnection:
         best_score = -math.inf
         move = 0
         my_player = self.board.current_player
+        alpha = -math.inf
+        beta = math.inf
 
         for point in self.board.get_empty_points():
             self.board.play_move(point, self.board.current_player)
             # I am maximising player, next player is opponent
-            score = self.minimax(0, False, my_player)
+            score = self.minimax(0, False, my_player, alpha, beta)
             self.board.undo(point)
             if score > best_score:
                 best_score = score
                 move = point
                 self.best_move = move
+            alpha = max(alpha, best_score)
+            if beta <= alpha:
+                break
         return best_score
 
-    def minimax(self, depth, is_maximizing, my_player):
+    def minimax(self, depth, is_maximizing, my_player, alpha, beta):
         """
         minimax for win/loss/draw
 
@@ -207,7 +211,7 @@ class GtpConnection:
         best_score - the best score from that round.
         """
         the_winner = self.board.detect_five_in_a_row()
-        if len(self.board.get_empty_points()) == 0 or the_winner != EMPTY:
+        if depth == 4 or len(self.board.get_empty_points()) == 0 or the_winner != EMPTY:
             return self.game_decision(the_winner, my_player)
 
         if is_maximizing:
@@ -216,9 +220,12 @@ class GtpConnection:
             for point in self.board.get_empty_points():
                 self.board.play_move(point, self.board.current_player)
                 # over to minimizing player
-                score = self.minimax(depth + 1, False, my_player)
+                score = self.minimax(depth + 1, False, my_player, alpha, beta)
                 self.board.undo(point)
                 best_score = max(score, best_score)  # I take the best
+                alpha = max(alpha, best_score)
+                if beta <= alpha:
+                    break
             return best_score
 
         else:
@@ -227,10 +234,13 @@ class GtpConnection:
             for point in self.board.get_empty_points():
                 self.board.play_move(point, self.board.current_player)
                 # over to maximizing player
-                score = self.minimax(depth + 1, True, my_player)
+                score = self.minimax(depth + 1, True, my_player, alpha, beta)
                 self.board.undo(point)
                 # He will take the worst
                 best_score = min(score, best_score)
+                beta = min(beta, best_score)
+                if beta <= alpha:
+                    break
             return best_score
 
     def game_decision(self, is_winner, my_player):
