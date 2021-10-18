@@ -8,6 +8,9 @@ Implements a basic Go board with functions to:
 
 The board uses a 1-dimensional representation with padding
 """
+import math
+from TranspositionTable import TranspositionTable
+from zobrist import zobrist
 
 import numpy as np
 from board_util import (
@@ -137,6 +140,142 @@ class GoBoard(object):
     def undo(self, point):
         self.board[point] = EMPTY
         self.current_player = GoBoardUtil.opponent(self.current_player)
+
+    def Game_Termination(self):
+
+        if len(self.board.get_empty_points()) == 0 or self.board.detect_five_in_a_row() != EMPTY:
+            return True
+        return False
+    """
+    def negamaxBoolean(self, tt,code):
+
+        code = zobrist.hash(GoBoardUtil.get_twoD_board(self.board).flatten())
+        result = tt.lookup(code)
+
+        result = tt.lookup(code)
+        if result != None:
+            return result
+          
+        if self.Game_Termination():
+            result = self.staticallyEvaluateForToPlay()
+            return storeResult(tt, self, result)
+        
+
+        Empty_points = self.get_empty_points()
+        color = self.current_player
+
+        for m in Empty_points:
+            self.play_move(m,color)
+            self.current_player = GoBoardUtil.opponent(color)
+
+            success = not negamaxBoolean(self, tt)
+            self.board[move] = EMPTY
+            self.current_player = color
+            self.undo()
+            
+            if success:
+                return storeResult(tt, self, True)
+        return storeResult(tt, self, False)
+    """
+
+    def min_moves(self):
+        """
+        This min_moves is basically a little better than naive minimax.
+        min_moves takes cares of the root and is the maximizing player. Later, it calls the minimizing player and
+        keeps track of the best_score and move from each root state.
+
+        Returns
+        -------
+        Returns the best root it finds in the table,
+        1 - our current player wins
+        -1 - our current player lost
+        0 - its a draw game
+
+        self.board.best_move = does not return this value but it stores the best move that we have.
+        """
+        best_score = -math.inf
+        move = 0
+        my_player = self.board.current_player
+
+        for point in self.board.get_empty_points():
+            self.board.play_move(point, self.board.current_player)
+            score = self.minimax(0, False, my_player)  # I am maximising player, next player is opponent
+            self.board.undo(point)
+            if score > best_score:
+                best_score = score
+                move = point
+                self.best_move = move
+        return best_score
+    
+    def minimax(self, depth, is_maximizing, my_player,tt:TranspositionTable,HashTable:zobrist):
+        """
+        minimax for win/loss/draw
+
+        at the start, checks if the board is filled up or anybody won. Then, return the result from that state,
+        (this is made mostly for terminal state)
+
+        Then if maximizing player,
+            tries to get the best move
+            over to minimizing player
+        Then if minimizing player,
+            we pick the worst he can do
+            over to us
+        Parameters
+        ----------
+        depth - the level of depth we reached in the tree
+        is_maximizing - True or False (are you a maximizing player or not)
+        my_player - the player who wants the solve.
+
+        Returns
+        -------
+        best_score - the best score from that round.
+        """
+        code = HashTable.hash(GoBoardUtil.get_twoD_board(self.board).flatten())
+        result = tt.lookup(code)
+
+        is_winner = self.board.detect_five_in_a_row()
+        if len(self.board.get_empty_points()) == 0 or is_winner != EMPTY:
+            result = self.game_decision(is_winner, my_player)
+            storeResult(tt, code, result)
+
+            return result
+        
+        if Game_Termination():
+            result = (min_moves(),None)
+            storeResult(tt, code, result)
+
+            return result
+
+        if is_maximizing:
+            best_score = -math.inf
+
+            for point in self.board.get_empty_points():
+                self.board.play_move(point, self.board.current_player)
+                score = self.minimax(depth + 1, False, my_player,tt,HashTable)  # over to minimizing player
+                self.board.undo(point)
+                best_score = max(score, best_score)  # I take the best
+            return best_score
+
+        else:
+            best_score = math.inf
+
+            for point in self.board.get_empty_points():
+                self.board.play_move(point, self.board.current_player)
+                score = self.minimax(depth + 1, True, my_player,tt,HashTable)  # over to maximizing player
+                self.board.undo(point)
+                best_score = min(score, best_score)  # He will take the worst
+            return best_score
+    """
+    def call_search(self):
+        tt = TranspositionTable() # use separate table for each color
+        return negamaxBoolean(self, tt)
+    """
+    
+    def storeResult(self, tt, result):
+        code = hash(GoBoardUtil.get_twoD_board(self.board).flatten())
+
+        tt.store(code, result)
+        return result
 
     def pt(self, row, col):
         return coord_to_point(row, col, self.size)
