@@ -37,7 +37,7 @@ class GtpConnection:
         board: 
             Represents the current board state.
         """
-        self.DEFAULT_TIMELIMIT = 1
+        self.DEFAULT_TIMELIMIT = 100
         # SHOULD ONLY BE CHANGED BY alphabeta_solve(para...)
         self.best_move = math.inf
         self.alt_move = 0
@@ -104,9 +104,8 @@ class GtpConnection:
         length = len(args)
         if length > 0:
             seconds = int(args[0])
-            assert 1 <= seconds <= 100, "Timelimit out of range"
             self.time_for_solve = seconds
-        return
+        self.respond()
 
     def solve_cmd(self, args):
         """
@@ -131,13 +130,13 @@ class GtpConnection:
         #  Someone already won.
         is_winner = self.board.detect_five_in_a_row()
         if is_winner == self.board.current_player:  # both are numbers
-            print(list(current_player_color))
+            self.respond(current_player_color)
             return
         elif is_winner == opponent_color_no:  # opponent won
-            print(list(opponent_color))
+            self.respond(opponent_color)
             return
         elif len(self.board.get_empty_points()) == 0 and is_winner == EMPTY:  # DRAW condition
-            print('[draw]')
+            self.respond('draw')
             return
         else:  # there are points on the board that is still playable
             our_result = self.min_moves()
@@ -151,6 +150,10 @@ class GtpConnection:
                 self.respond("{winner}".format(winner=opponent_color))
             elif our_result == 0:
                 self.respond("draw {move}".format(move=move))
+
+    def solve_handler(self, signum, frame):
+        self.respond("unknown")
+        raise Exception("timeout")
 
     def min_moves(self):
         """
@@ -211,7 +214,7 @@ class GtpConnection:
         best_score - the best score from that round.
         """
         the_winner = self.board.detect_five_in_a_row()
-        if depth == 4 or len(self.board.get_empty_points()) == 0 or the_winner != EMPTY:
+        if depth == 3 or len(self.board.get_empty_points()) == 0 or the_winner != EMPTY:
             return self.game_decision(the_winner, my_player)
 
         if is_maximizing:
@@ -441,11 +444,24 @@ class GtpConnection:
             self.respond("illegal move: {}".format(
                 str(e).replace('\'', '')))
 
+    def genmove_handler(self, signum, frame):
+
+        color = self.board.current_player
+        move = self.go_engine.get_move(self.board, color)
+        move_coord = point_to_coord(move, self.board.size)
+        move_as_string = format_point(move_coord)
+        if self.board.is_legal(move, color):
+            self.board.play_move(move, color)
+            self.respond(move_as_string.lower())
+        else:
+            self.respond("Illegal move: {}".format(move_as_string))
+        raise Exception("genmove_timeout")
+
     def genmove_cmd(self, args):
         """
         Generate a move for the color args[0] in {'b', 'w'}, for the game of gomoku.
         """
-        """
+
         result = self.board.detect_five_in_a_row()
         if result == GoBoardUtil.opponent(self.board.current_player):
             self.respond("resign")
@@ -455,43 +471,17 @@ class GtpConnection:
             return
         board_color = args[0].lower()
         color = color_to_int(board_color)
-        move = self.go_engine.get_move(self.board, color)
-        move_coord = point_to_coord(move, self.board.size)
-        move_as_string = format_point(move_coord)
-        if self.board.is_legal(move, color):
-            self.board.play_move(move, color)
-            self.respond(move_as_string.lower())
-        else:
-            self.respond("Illegal move: {}".format(move_as_string))
 
-        """
-        
-        
-        result = self.solve_cmd() #need parameter?
-        color = color_to_int(args[0].lower())
-        moves = GoBoardUtil.generate_legal_moves(self.board, color)
-        
-        #game go on
-        if result == False:
-            
-            move_as_string = format_point(move_coord)
-            if self.board.is_legal(move,color):
-                self.board.play_move(move, color)
-                self.respond(move_as_string)
-                
-            
-            #random choice
-            else:
-                move = self.go_engine.get_move(self.board, color)
-                move_coord = point_to_coord(move, self.board.size)
-                move_as_string = format_point(move_coord) 
-                self.board.play_move(move, color)
-                self.respond(move_as_string)                
-                       
-        # game is over.
+        self.min_moves()
+
+        coord = point_to_coord(self.best_move, self.board.size)
+        move = format_point(coord)
+
+        if self.board.is_legal(self.best_move, color):
+            self.board.play_move(self.best_move, color)
+            self.respond(move)
         else:
-            self.respond("resign")
-        
+            self.respond("Illegal move: {}".format(move))
 
     def gogui_rules_game_id_cmd(self, args):
         self.respond("Gomoku")
